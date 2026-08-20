@@ -36,7 +36,7 @@ const RiderCurrentOrder = ({ order, onStatusUpdate }: RiderCurrentOrderProps) =>
 
       <div>
         <span className="font-medium">Pickup: </span>
-        {order.pickupAddress?.formattedAddress}
+        {order.deliveryAddress?.formattedAddress}
       </div>
 
       <div>

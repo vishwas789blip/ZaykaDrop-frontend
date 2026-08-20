@@ -4,10 +4,11 @@ import { useSocket } from "../context/SocketContext";
 import axios from "axios";
 import { riderService } from "../utils/constant";
 import toast from "react-hot-toast";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX, Star, BadgeCheck } from "lucide-react";
 import audioAsset from "../assets/fahhhhh.mp3";
 import type { IOrder } from "../types";
 import RiderCurrentOrder from "../components/RiderCurrentOrder";
+import AddRiderProfile from "../components/AddRiderProfile";
 
 interface IRider {
   _id: string;
@@ -17,6 +18,11 @@ interface IRider {
   picture: string;
   isVerified: boolean;
   isAvailable: boolean;
+  vehicleNumber: string;
+  rating?: {
+    average: number;
+    count: number;
+  };
 }
 
 const RiderDashboard = () => {
@@ -123,14 +129,14 @@ const RiderDashboard = () => {
   }, [socket, audioUnlocked]);
 
   useEffect(() => {
-  if (!socket || !profile?._id) return;
+    if (!socket || !profile?._id) return;
 
-  socket.emit("join_rider_room", `rider:${profile._id}`);
-  console.log("Joined rider room:", `rider:${profile._id}`);
+    socket.emit("join_rider_room", `rider:${profile._id}`);
+    console.log("Joined rider room:", `rider:${profile._id}`);
 
-  return () => {
-    socket.emit("leave_rider_room", `rider:${profile._id}`);
-  };
+    return () => {
+      socket.emit("leave_rider_room", `rider:${profile._id}`);
+    };
   }, [socket, profile?._id]);
 
   const toggleAvailability = async () => {
@@ -202,8 +208,48 @@ const RiderDashboard = () => {
     return <div>Loading...</div>;
   }
 
+  // No rider profile yet — show the profile creation form
+  if (!profile) {
+    return <AddRiderProfile onSuccess={fetchProfile} />;
+  }
+
   return (
     <div className="p-4 flex flex-col gap-4">
+      {/* Rider profile header */}
+      <div className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+        <img
+          src={profile.picture}
+          alt="Rider profile"
+          className="w-16 h-16 rounded-full object-cover border"
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-base">{profile.phoneNumber}</span>
+            {profile.isVerified && (
+              <BadgeCheck className="w-4 h-4 text-green-600" />
+            )}
+          </div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            Vehicle: {profile.vehicleNumber}
+          </div>
+          {profile.rating && (
+            <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
+              <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+              {profile.rating.average.toFixed(1)} ({profile.rating.count} rides)
+            </div>
+          )}
+        </div>
+        <span
+          className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+            profile.isAvailable
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-500"
+          }`}
+        >
+          {profile.isAvailable ? "Online" : "Offline"}
+        </span>
+      </div>
+
       {!audioUnlocked && (
         <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
           <span className="flex items-center gap-2">

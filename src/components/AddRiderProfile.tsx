@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAppData } from '../context/AppContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { riderService } from '../utils/constant';
@@ -9,7 +8,6 @@ interface AddRiderProfileProps {
 }
 
 const AddRiderProfile = ({ onSuccess }: AddRiderProfileProps) => {
-  const { user } = useAppData();
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [aadharNumber, setAadharNumber] = useState('');

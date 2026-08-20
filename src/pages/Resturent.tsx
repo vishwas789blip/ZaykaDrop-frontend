@@ -30,34 +30,35 @@ function Resturent() {
     navigate("/login", { replace: true });
   };
 
-  const fetchMyRestaurant = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setLoading(false);
-      return toast.error("Please login first");
+const fetchMyRestaurant = useCallback(async () => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    setLoading(false);
+    toast.error("Please login first");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const { data } = await axios.get(
+      `${resturentService}/api/restaurant/my`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setRestaurant(data?.restaurant || null);
+    if (data?.token) localStorage.setItem("token", data.token);
+  } catch (error: any) {
+    console.error("Dashboard identity verification catch error:", error);
+
+    if (error?.response?.status === 404) {
+      setRestaurant(null);
+    } else {
+      toast.error(error?.response?.data?.message || "Failed to fetch restaurant configuration");
     }
-
-    try {
-      setLoading(true);
-      const { data } = await axios.get(
-        `${resturentService}/api/restaurant/my`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setRestaurant(data?.restaurant || null);
-      if (data?.token) localStorage.setItem("token", data.token);
-    } catch (error: any) {
-      console.error("Dashboard identity verification catch error:", error);
-
-      if (error?.response?.status === 404) {
-        setRestaurant(null);
-      } else {
-        toast.error(error?.response?.data?.message || "Failed to fetch restaurant configuration");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchMyRestaurant();
@@ -77,7 +78,7 @@ function Resturent() {
   }
 
   if (!restaurant) {
-    return <AddRestaurant fetchMyRestaurent={fetchMyRestaurant} />;
+    return <AddRestaurant fetchMyRestaurant={fetchMyRestaurant} />;  
   }
 
   const tabs: { key: SellerTab; label: string; emoji: string }[] = [

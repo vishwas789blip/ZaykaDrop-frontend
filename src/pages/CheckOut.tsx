@@ -133,8 +133,11 @@ export default function Checkout() {
     );
   }
 
-  const restaurantName = cartItems[0]?.restaurantId?.name || "Restaurant";
-
+  const restaurantName =
+    (typeof cartItems[0]?.restaurantId === "object"
+      ? cartItems[0]?.restaurantId?.name
+      : undefined) || "Restaurant"; 
+      
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#212121] py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -400,7 +403,6 @@ function Section({
 }
 
 function PaymentOption({
-  id,
   label,
   icon,
   selected,

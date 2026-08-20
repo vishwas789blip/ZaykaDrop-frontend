@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle, Clock, ArrowRight, Check } from "lucide-react";
+import { CheckCircle, Clock, ArrowRight } from "lucide-react";
 import type { IOrder } from "../types";
 
 type OrderStatus =

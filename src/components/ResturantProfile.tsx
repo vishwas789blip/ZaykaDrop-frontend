@@ -142,8 +142,7 @@ const RestaurantProfile = ({ restaurant, isSeller, onUpdate }: RestaurantProfile
                   {restaurant.description || "No description added yet."}
                 </p>
                 <div className="flex items-center gap-2 text-xs font-medium text-gray-400 mt-3">
-                  <span>📍 {restaurant.formattedAddress || "No address"}</span>
-                  {restaurant.phone && <span>• 📞 +91 {restaurant.phone}</span>}
+                    <span>📍 {restaurant.autoLocation?.formattedAddress || "No address"}</span>                  {restaurant.phone && <span>• 📞 +91 {restaurant.phone}</span>}
                 </div>
               </div>
             )}
