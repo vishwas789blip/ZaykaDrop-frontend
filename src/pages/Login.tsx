@@ -8,18 +8,20 @@ import { useAppData } from '../context/AppContext';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const { setUser, setIsAuth } = useAppData();
 
   const responseGoogle = async (authResult: any) => {
-    if (authResult?.error) {  
+    if (authResult?.error) {
       toast.error('Google verification failed or cancelled');
       return;
     }
-    
+
     setLoading(true);
     try {
-      const result = await axios.post(`${authService}/api/auth/login`, {
+      const result = await axios.post(`${authService}/api/auth/google`, {
         code: authResult["code"],
       });
 
@@ -27,7 +29,7 @@ const Login = () => {
       toast.success(result.data.message || "Welcome back!");
       setUser(result.data.user);
       setIsAuth(true);
-      navigate("/");
+      navigate(result.data.needsRoleSelection ? "/select-role" : "/");
     } catch (error) {
       console.error("Authentication Error:", error);
       toast.error("An error occurred during authentication. Please try again.");
@@ -41,6 +43,34 @@ const Login = () => {
     onError: responseGoogle,
     flow: "auth-code",
   });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email || !password) {
+      toast.error("Please fill in both fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await axios.post(`${authService}/api/auth/login`, {
+        email,
+        password,
+      });
+
+      localStorage.setItem("token", result.data.token);
+      toast.success(result.data.message || "Welcome back!");
+      setUser(result.data.user);
+      setIsAuth(true);
+      navigate(result.data.needsRoleSelection ? "/select-role" : "/");
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      toast.error(error?.response?.data?.message || "Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] p-4 text-[#212121]">
@@ -99,37 +129,42 @@ const Login = () => {
           </div>
 
           {/* Standard Form Fallbacks */}
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1.5">
                 Email Address
               </label>
-              <input 
-                type="email" 
-                placeholder="name@example.com" 
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] transition" 
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] transition"
               />
             </div>
-            
+
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1.5">
                 Password
               </label>
-              <input 
-                type="password" 
-                placeholder="••••••••" 
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] transition" 
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#FF9933] focus:ring-1 focus:ring-[#FF9933] transition"
               />
             </div>
-          </div>
 
-          {/* Primary Submit CTA Button */}
-          <button 
-            type="submit"
-            className="w-full mt-6 py-3 bg-gradient-to-r from-[#FF9933] to-[#E65100] hover:from-[#E65100] hover:to-[#d84315] text-white rounded-xl text-sm font-bold shadow-md shadow-orange-500/10 transition duration-200"
-          >
-            Sign In
-          </button>
+            {/* Primary Submit CTA Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 py-3 bg-gradient-to-r from-[#FF9933] to-[#E65100] hover:from-[#E65100] hover:to-[#d84315] text-white rounded-xl text-sm font-bold shadow-md shadow-orange-500/10 transition duration-200 disabled:opacity-50"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
 
           <p className="text-center text-xs text-gray-500 mt-6">
             New to our platform?{' '}

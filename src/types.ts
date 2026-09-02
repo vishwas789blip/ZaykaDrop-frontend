@@ -25,6 +25,8 @@ export interface AppContextType {
   location: LocationData | null;
   loadingLocation: boolean;
   city: string;
+  setManualLocation: (loc: LocationData, cityName: string) => void;
+  refreshCurrentLocation: () => void;                                     
   cart: any[];
   setCart: Dispatch<SetStateAction<any[]>>;
   subTotal: number;
