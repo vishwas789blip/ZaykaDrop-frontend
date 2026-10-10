@@ -1,15 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import * as L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-routing-machine';
-
-declare module 'leaflet' {
-  namespace Routing {
-    function control(options: any): any;
-    function osrmv1(options: any): any;
-  }
-}
+import L, { getRouting } from '../utils/leafletRouting';
 
 const riderIcon = new L.DivIcon({
   html: '<div class="bg-blue-500 w-6 h-6 rounded-full border-2 border-white shadow-md"></div>',
@@ -41,43 +32,81 @@ const Routing = ({ from, to, onError, onRouteFound }: RoutingProps) => {
   useEffect(() => {
     if (!map) return;
 
-    const control = L.Routing.control({
-      waypoints: [L.latLng(from[0], from[1]), L.latLng(to[0], to[1])],
-      lineOptions: {
-        styles: [{ color: '#3b82f6', opacity: 0.7, weight: 4 }],
-      },
-      addWaypoints: false,
-      routeWhileDragging: false,
-      draggableWaypoints: false,
-      fitSelectedRoutes: true,
-      showAlternatives: false,
-      show: false,
-      collapsible: false,
-      createMarker: () => null,
-      router: L.Routing.osrmv1({
-        serviceUrl: 'https://router.project-osrm.org/route/v1',
-      }),
-    });
+    const routing = getRouting();
+    if (!routing || typeof routing.control !== 'function') {
+      const fallbackLine = L.polyline([from, to], {
+        color: '#3b82f6',
+        opacity: 0.7,
+        weight: 4,
+        dashArray: '6, 8',
+      }).addTo(map);
 
-    control.on('routesfound', (e: any) => {
-      const route = e.routes?.[0];
-      if (route && onRouteFound) {
-        onRouteFound({ distance: route.summary.totalDistance, time: route.summary.totalTime });
-      }
-    });
+      return () => {
+        try {
+          map.removeLayer(fallbackLine);
+        } catch {
+          /* no-op */
+        }
+      };
+    }
 
-    control.on('routingerror', () => {
+    let control: any = null;
+    try {
+      control = routing.control({
+        waypoints: [L.latLng(from[0], from[1]), L.latLng(to[0], to[1])],
+        lineOptions: {
+          styles: [{ color: '#3b82f6', opacity: 0.7, weight: 4 }],
+        },
+        addWaypoints: false,
+        routeWhileDragging: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        showAlternatives: false,
+        show: false,
+        collapsible: false,
+        createMarker: () => null,
+        router: routing.osrmv1({
+          serviceUrl: 'https://router.project-osrm.org/route/v1',
+        }),
+      });
+
+      control.on('routesfound', (e: any) => {
+        const route = e.routes?.[0];
+        if (route && onRouteFound) {
+          onRouteFound({ distance: route.summary.totalDistance, time: route.summary.totalTime });
+        }
+      });
+
+      control.on('routingerror', () => {
+        onError?.();
+      });
+
+      control.addTo(map);
+      controlRef.current = control;
+    } catch (err) {
+      console.warn('Failed to initialize routing control:', err);
       onError?.();
-    });
+      const fallbackLine = L.polyline([from, to], {
+        color: '#3b82f6',
+        opacity: 0.7,
+        weight: 4,
+        dashArray: '6, 8',
+      }).addTo(map);
 
-    control.addTo(map);
-    controlRef.current = control;
+      return () => {
+        try {
+          map.removeLayer(fallbackLine);
+        } catch {
+          /* no-op */
+        }
+      };
+    }
 
     return () => {
-      // removeControl can throw if the map instance was already unmounted —
-      // guard so a fast-changing rider location can't crash the tree.
       try {
-        map.removeControl(control);
+        if (control) {
+          map.removeControl(control);
+        }
       } catch {
         /* no-op — map already gone */
       }

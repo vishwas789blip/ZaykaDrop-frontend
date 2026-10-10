@@ -51,18 +51,23 @@ const App = () => {
 
         {/* Customer & unauthenticated routes */}
         {(!user || user?.role === "customer" || !user?.role) && (
-          <Route element={<ProtectedRoute />}>
+          <>
+            {/* Publicly browseable pages */}
             <Route path="/" element={<Home />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/select-role" element={<SelectRole />} />
-            <Route path="/order/:id" element={<OrderStatus />} />
-            <Route path="/order-success/:id" element={<OrderSuccess />} />
             <Route path="/restaurant/:id" element={<RestaurantPage />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<CheckOut />} />
-            <Route path="/AllOrder" element={<AllOrder />} />
-            <Route path="/address" element={<AddressManager />} />
-          </Route>
+
+            {/* Authenticated user actions */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/account" element={<Account />} />
+              <Route path="/select-role" element={<SelectRole />} />
+              <Route path="/order/:id" element={<OrderStatus />} />
+              <Route path="/order-success/:id" element={<OrderSuccess />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<CheckOut />} />
+              <Route path="/AllOrder" element={<AllOrder />} />
+              <Route path="/address" element={<AddressManager />} />
+            </Route>
+          </>
         )}
 
         {/* Fallback */}

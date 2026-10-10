@@ -41,16 +41,17 @@ const Home = () => {
 
     try {
     setLoading(true);
+    const token = localStorage.getItem("token");
     const { data } = await axios.get(`${resturentService}/api/restaurant/all`, {
-    params: {
-      latitude: location?.latitude,
-      longitude: location?.longitude,
-      search,
-    },
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-  });
+      params: {
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        search,
+      },
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
   setRestaurants(data.restaurants ?? []);
 } catch (error) {

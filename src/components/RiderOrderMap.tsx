@@ -1,18 +1,8 @@
 import type { IOrder } from '../types';
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import * as L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-routing-machine';
-
+import L, { getRouting } from '../utils/leafletRouting';
 import { useSocket } from '../context/SocketContext';
-
-declare module 'leaflet' {
-    namespace Routing {
-        function control(options: any): any;
-        function osrmv1(options: any): any;
-    }
-}
 
 const riderIcon = new L.DivIcon({
     html: '<div class="bg-blue-500 w-6 h-6 rounded-full border-2 border-white"></div>',
@@ -42,28 +32,73 @@ const Routing = ({
     const map = useMap();
 
     useEffect(() => {
-        const control = L.Routing.control({
-            waypoints: [L.latLng(from[0], from[1]), L.latLng(to[0], to[1])],
-            lineOptions: {
-                styles: [{ color: 'blue', opacity: 0.6, weight: 4 }],
-            },
-            addWaypoints: false,
-            routeWhileDragging: false,
-            draggableWaypoints: false,
-            fitSelectedRoutes: true,
-            showAlternatives: false,
-            show: false,
-            collapsible: false,
-            createMarker: () => null,
-            router: L.Routing.osrmv1({
-                serviceUrl: 'https://router.project-osrm.org/route/v1',
-            }),
-        }).addTo(map);
+        if (!map) return;
+
+        const routing = getRouting();
+        if (!routing || typeof routing.control !== 'function') {
+            const fallbackLine = L.polyline([from, to], {
+                color: 'blue',
+                opacity: 0.6,
+                weight: 4,
+                dashArray: '6, 8',
+            }).addTo(map);
+
+            return () => {
+                try {
+                    map.removeLayer(fallbackLine);
+                } catch {
+                    /* no-op */
+                }
+            };
+        }
+
+        let control: any = null;
+        try {
+            control = routing.control({
+                waypoints: [L.latLng(from[0], from[1]), L.latLng(to[0], to[1])],
+                lineOptions: {
+                    styles: [{ color: 'blue', opacity: 0.6, weight: 4 }],
+                },
+                addWaypoints: false,
+                routeWhileDragging: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: true,
+                showAlternatives: false,
+                show: false,
+                collapsible: false,
+                createMarker: () => null,
+                router: routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                }),
+            }).addTo(map);
+        } catch (err) {
+            console.warn('Failed to initialize routing control:', err);
+            const fallbackLine = L.polyline([from, to], {
+                color: 'blue',
+                opacity: 0.6,
+                weight: 4,
+                dashArray: '6, 8',
+            }).addTo(map);
+
+            return () => {
+                try {
+                    map.removeLayer(fallbackLine);
+                } catch {
+                    /* no-op */
+                }
+            };
+        }
 
         return () => {
-            map.removeControl(control);
+            try {
+                if (control) {
+                    map.removeControl(control);
+                }
+            } catch {
+                /* no-op */
+            }
         };
-    }, [from, to, map]);
+    }, [from[0], from[1], to[0], to[1], map]);
 
     return null;
 };

@@ -5,7 +5,7 @@ import App from './App.tsx'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AppProvider } from './context/AppContext.tsx'
 import { SocketProvider } from './context/SocketContext.tsx'
-import 'leaflet/dist/leaflet.css'
+import './utils/leafletRouting'
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 

@@ -95,13 +95,16 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     if (!restaurantId) return;
 
     const token = localStorage.getItem("token");
-    if (!token) return;
 
     try {
       setLoadingMenu(true);
       const { data } = await axios.get(
         `${resturentService}/api/menu/all/${restaurantId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        }
       );
       setMenuItems(Array.isArray(data) ? data : []);
     } catch (error) {
