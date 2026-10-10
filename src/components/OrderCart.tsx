@@ -79,18 +79,18 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onStatusUpdate, isUpdating
   const [retryVisible, setRetryVisible] = useState(false);
 
   useEffect(() => {
-    if(order.status === "ready_for_rider" ) {
-      setRetryVisible(false);
+    setRetryVisible(false);
+
+    if (order.status !== "ready_for_rider") {
       return;
     }
 
     const timer = setTimeout(() => {
       setRetryVisible(true);
-    },10000)
+    }, 10000);
 
     return () => clearTimeout(timer);
-
-  },[order.status])
+  }, [order.status]);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
       {/* Top section */}

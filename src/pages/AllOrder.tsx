@@ -4,7 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { resturentService } from "../utils/constant";
 
-type OrderStatus = "placed" | "accepted" | "preparing" | "ready_for_rider" | "out_for_delivery" | "delivered" | "cancelled";
+type OrderStatus = "placed" | "accepted" | "preparing" | "ready_for_rider" | "rider_assigned" | "picked_up" | "delivered" | "cancelled";
 
 interface OrderItem {
   itemId: string;
@@ -29,7 +29,8 @@ const STATUS_META: Record<OrderStatus, { label: string; badgeClass: string; dotC
   accepted:         { label: "Accepted",         badgeClass: "bg-blue-100 text-blue-800",      dotClass: "bg-blue-500",   emoji: "✅" },
   preparing:        { label: "Preparing",        badgeClass: "bg-violet-100 text-violet-800",  dotClass: "bg-violet-500", emoji: "👨‍🍳" },
   ready_for_rider:  { label: "Ready for Pickup", badgeClass: "bg-emerald-100 text-emerald-800",dotClass: "bg-emerald-500",emoji: "📦" },
-  out_for_delivery: { label: "Out for Delivery", badgeClass: "bg-orange-100 text-orange-800",  dotClass: "bg-orange-500", emoji: "🛵" },
+  rider_assigned:   { label: "Rider Assigned",   badgeClass: "bg-amber-100 text-amber-800",    dotClass: "bg-amber-500",  emoji: "🛵" },
+  picked_up:        { label: "Out for Delivery", badgeClass: "bg-orange-100 text-orange-800",  dotClass: "bg-orange-500", emoji: "🛵" },
   delivered:        { label: "Delivered",        badgeClass: "bg-green-100 text-green-800",    dotClass: "bg-green-500",  emoji: "🎉" },
   cancelled:        { label: "Cancelled",        badgeClass: "bg-red-100 text-red-800",        dotClass: "bg-red-500",    emoji: "❌" },
 };

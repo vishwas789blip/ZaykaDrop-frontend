@@ -140,7 +140,12 @@ export default function OrderStatus() {
       .get(`${resturentService}/api/order/single/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      .then(({ data }) => setOrder(data.order))
+      .then(({ data }) => {
+        setOrder(data.order);
+        if (data.order?.riderLocation?.latitude != null && data.order?.riderLocation?.longitude != null) {
+          setRiderLocation([data.order.riderLocation.latitude, data.order.riderLocation.longitude]);
+        }
+      })
       .catch(() => toast.error("Failed to load order details. Please try again."))
       .finally(() => setLoading(false));
   }, [id]);

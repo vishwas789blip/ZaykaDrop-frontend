@@ -5,8 +5,7 @@ import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine';
 
-import axios from 'axios';
-import { realtimeService } from '../utils/constant';
+import { useSocket } from '../context/SocketContext';
 
 declare module 'leaflet' {
     namespace Routing {
@@ -53,6 +52,8 @@ const Routing = ({
             draggableWaypoints: false,
             fitSelectedRoutes: true,
             showAlternatives: false,
+            show: false,
+            collapsible: false,
             createMarker: () => null,
             router: L.Routing.osrmv1({
                 serviceUrl: 'https://router.project-osrm.org/route/v1',
@@ -69,6 +70,7 @@ const Routing = ({
 
 const RiderOrderMap = ({ order }: Props) => {
     const [riderLocation, setRiderLocation] = useState<[number, number] | null>(null);
+    const { socket } = useSocket();
 
     useEffect(() => {
         if (order.deliveryAddress.latitude == null || order.deliveryAddress.longitude == null) {
@@ -77,31 +79,18 @@ const RiderOrderMap = ({ order }: Props) => {
 
         const fetchRiderLocation = () => {
             navigator.geolocation.getCurrentPosition(
-                async (position) => {
+                (position) => {
                     const latitude = position.coords.latitude;
                     const longitude = position.coords.longitude;
 
                     setRiderLocation([latitude, longitude]);
 
-                    try {
-                        await axios.post(
-                            `${realtimeService}/api/v1/internal/emit`,
-                            {
-                                event: "rider:location-update",
-                                room: `user:${order.userId}`,
-                                payload: {
-                                    latitude,
-                                    longitude,
-                                },
-                            },
-                            {
-                                headers: {
-                                    'x-internal-key': import.meta.env.VITE_INTERNAL_KEY,
-                                },
-                            }
-                        );
-                    } catch (error) {
-                        console.error('Failed to emit rider location update:', error);
+                    if (socket) {
+                        socket.emit("rider:location-update", {
+                            userId: order.userId,
+                            latitude,
+                            longitude,
+                        });
                     }
                 },
                 (err) => {
@@ -119,7 +108,7 @@ const RiderOrderMap = ({ order }: Props) => {
         const interval = setInterval(fetchRiderLocation, 10000);
 
         return () => clearInterval(interval);
-    }, [order.userId, order.riderId, order.deliveryAddress.latitude, order.deliveryAddress.longitude]);
+    }, [order.userId, order.riderId, order.deliveryAddress.latitude, order.deliveryAddress.longitude, socket]);
 
     if (order.deliveryAddress.latitude == null || order.deliveryAddress.longitude == null) {
         return null;

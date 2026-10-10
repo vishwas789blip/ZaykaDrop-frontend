@@ -1,5 +1,5 @@
 import { Toaster } from 'react-hot-toast'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -22,23 +22,35 @@ const App = () => {
   const { user, loading } = useAppData();
 
   if (loading) {
-    return <div className='text-2xl font-bold'>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-[#FF9933] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
+      <Routes>
+        {/* Public routes */}
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
 
-      {user?.role === "seller" ? (
-        <Resturent />
-      ) : user?.role === "rider" ? (
-        <RiderDashboard />
-      ) : (
-        <Routes>
-          <Route element={<PublicRoute />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-          </Route>
+        {/* Seller routes */}
+        {user?.role === "seller" && (
+          <Route path="/*" element={<Resturent />} />
+        )}
+
+        {/* Rider routes */}
+        {user?.role === "rider" && (
+          <Route path="/*" element={<RiderDashboard />} />
+        )}
+
+        {/* Customer & unauthenticated routes */}
+        {(!user || user?.role === "customer" || !user?.role) && (
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Home />} />
             <Route path="/account" element={<Account />} />
@@ -51,8 +63,11 @@ const App = () => {
             <Route path="/AllOrder" element={<AllOrder />} />
             <Route path="/address" element={<AddressManager />} />
           </Route>
-        </Routes>
-      )}
+        )}
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   )
 }

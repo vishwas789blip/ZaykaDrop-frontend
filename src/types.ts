@@ -135,6 +135,11 @@ export interface IOrder {
     longitude: number;
   };
 
+  riderLocation?: {
+    latitude: number;
+    longitude: number;
+  };
+
   status:
     | "placed"
     | "accepted"

@@ -51,6 +51,8 @@ const Routing = ({ from, to, onError, onRouteFound }: RoutingProps) => {
       draggableWaypoints: false,
       fitSelectedRoutes: true,
       showAlternatives: false,
+      show: false,
+      collapsible: false,
       createMarker: () => null,
       router: L.Routing.osrmv1({
         serviceUrl: 'https://router.project-osrm.org/route/v1',

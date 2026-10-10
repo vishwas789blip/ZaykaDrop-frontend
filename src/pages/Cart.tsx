@@ -137,13 +137,13 @@ export default function Cart() {
     }
   };
 
-  // Pricing — free delivery above ₹200
+  // Pricing — free delivery above ₹250
   const subtotal = cartItems.reduce(
     (acc, item) => acc + (item.itemId?.price || 0) * item.quantity,
     0
   );
-  const deliveryFee = cartItems.length > 0 && subtotal < 200 ? 35 : 0;
-  const platformFee = cartItems.length > 0 ? 5 : 0;
+  const deliveryFee = cartItems.length > 0 && subtotal < 250 ? 49 : 0;
+  const platformFee = cartItems.length > 0 ? 7 : 0;
   const totalAmount = subtotal + deliveryFee + platformFee;
 
   const checkOut = () => {
@@ -280,9 +280,9 @@ export default function Cart() {
               </div>
 
               {/* Free delivery progress hint */}
-              {subtotal < 200 && (
+              {subtotal < 250 && (
                 <p className="text-[11px] text-orange-500 font-medium bg-orange-50 px-2.5 py-1.5 rounded-lg">
-                  Add ₹{200 - subtotal} more for free delivery!
+                  Add ₹{250 - subtotal} more for free delivery!
                 </p>
               )}
             </div>

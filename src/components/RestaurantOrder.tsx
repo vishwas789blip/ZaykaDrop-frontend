@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useSocket } from "../context/SocketContext";
 import type { IOrder } from "../types";
 import axios from "axios";
+import toast from "react-hot-toast";
 import { resturentService } from "../utils/constant";
 import audioAsset from "../assets/fahhhhh.mp3";
 import OrderCard, { PENDING_STATUSES,   } from "./OrderCart";
@@ -99,6 +100,7 @@ export default function RestaurantOrder({ restaurantId, token, useMock = false }
   useEffect(() => {
     if (!socket || !restaurantId) return;
     socket.emit("join_restaurant", { restaurantId });
+
     const onNewOrder = () => {
       if (audioUnlocked && audioRef.current) {
         audioRef.current.currentTime = 0;
@@ -106,8 +108,18 @@ export default function RestaurantOrder({ restaurantId, token, useMock = false }
       }
       fetchActiveOrders();
     };
+
+    const onOrderStatusUpdated = () => {
+      fetchActiveOrders();
+    };
+
     socket.on("order:new", onNewOrder);
-    return () => { socket.off("order:new", onNewOrder); };
+    socket.on("order_status_updated", onOrderStatusUpdated);
+
+    return () => {
+      socket.off("order:new", onNewOrder);
+      socket.off("order_status_updated", onOrderStatusUpdated);
+    };
   }, [socket, audioUnlocked, fetchActiveOrders, restaurantId]);
 
   const handleStatusUpdate = useCallback(async (orderId: string, nextStatus: OrderStatus) => {
@@ -118,7 +130,16 @@ export default function RestaurantOrder({ restaurantId, token, useMock = false }
         headers: { "Content-Type": "application/json", Authorization: authHeader },
         body: JSON.stringify({ status: nextStatus }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast.error("Failed to update status");
+        return;
+      }
+
+      if (nextStatus === "ready_for_rider") {
+        toast.success("Dispatched to nearby riders! 🛵");
+      } else {
+        toast.success(`Order moved to ${nextStatus.replace(/_/g, " ")}`);
+      }
 
       if (nextStatus === "delivered") {
         const moved = activeOrders.find(o => o._id === orderId);
@@ -131,9 +152,13 @@ export default function RestaurantOrder({ restaurantId, token, useMock = false }
       } else {
         setActiveOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: nextStatus } : o));
       }
-    } catch (e) { console.error(e); }
-    finally { setUpdatingId(null); }
-  }, [activeOrders, token]);
+    } catch (e) {
+      console.error(e);
+      toast.error("Network error while updating status");
+    } finally {
+      setUpdatingId(null);
+    }
+  }, [activeOrders, authHeader]);
 
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count: number; badgeClass: string }[] = [
