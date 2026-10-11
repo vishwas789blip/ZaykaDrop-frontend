@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { resturentService } from "../utils/constant";
+import { useSocket } from "../context/SocketContext";
 
 type OrderStatus =
   | "placed"
@@ -43,8 +44,9 @@ const ACTIVE_STATUSES: OrderStatus[] = [
 export default function ActiveOrderBanner() {
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
   const navigate = useNavigate();
+  const { socket } = useSocket();
 
-  useEffect(() => {
+  const fetchActiveOrder = () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
@@ -54,18 +56,30 @@ export default function ActiveOrderBanner() {
       })
       .then(({ data }) => {
         const orders: ActiveOrder[] = data.orders ?? [];
-
-        // Pick the most recent active order
         const active = orders.find(o =>
           ACTIVE_STATUSES.includes(o.status as OrderStatus)
         );
-
         setActiveOrder(active ?? null);
       })
-      .catch(() => {
-        // Silently fail — banner is non-critical
-      });
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchActiveOrder();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      fetchActiveOrder();
+    };
+
+    socket.on("order_status_updated", handleUpdate);
+    return () => {
+      socket.off("order_status_updated", handleUpdate);
+    };
+  }, [socket]);
 
   if (!activeOrder) return null;
 

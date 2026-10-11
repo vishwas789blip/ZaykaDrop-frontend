@@ -167,6 +167,14 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onStatusUpdate, isUpdating
               </>
             )}
           </button>
+        ) : status === "rider_assigned" ? (
+          <span className="text-xs text-orange-600 font-semibold flex items-center gap-1">
+            🛵 Rider Assigned: {order.riderName || order.riderPhone || "En route"}
+          </span>
+        ) : status === "picked_up" ? (
+          <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+            🚀 Picked Up & Out for Delivery
+          </span>
         ) : (
           <span className="text-xs text-gray-400 italic">Awaiting rider</span>
         )}

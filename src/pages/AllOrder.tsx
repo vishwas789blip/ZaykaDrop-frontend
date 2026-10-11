@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { resturentService } from "../utils/constant";
+import { useSocket } from "../context/SocketContext";
 
 type OrderStatus = "placed" | "accepted" | "preparing" | "ready_for_rider" | "rider_assigned" | "picked_up" | "delivered" | "cancelled";
 
@@ -104,8 +105,9 @@ export default function MyOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { socket } = useSocket();
 
-  useEffect(() => {
+  const fetchOrders = () => {
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -120,11 +122,27 @@ export default function MyOrders() {
       })
       .then(({ data }) => setOrders(data.orders ?? []))
       .catch(() => {
-        // Never remove token or redirect — just show a non-intrusive error
         toast.error("Failed to fetch orders. Please try again.");
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      fetchOrders();
+    };
+
+    socket.on("order_status_updated", handleUpdate);
+    return () => {
+      socket.off("order_status_updated", handleUpdate);
+    };
+  }, [socket]);
 
   const active = orders.filter(o => !["delivered", "cancelled"].includes(o.status));
   const past   = orders.filter(o =>  ["delivered", "cancelled"].includes(o.status));

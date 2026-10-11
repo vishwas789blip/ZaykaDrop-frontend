@@ -123,6 +123,7 @@ const RiderOrderMap = ({ order }: Props) => {
                     if (socket) {
                         socket.emit("rider:location-update", {
                             userId: order.userId,
+                            orderId: order._id,
                             latitude,
                             longitude,
                         });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -6,6 +6,7 @@ import { useSocket } from "../context/SocketContext";
 import { resturentService } from "../utils/constant";
 import type { IOrder } from "../types";
 import UserOrderMap from "../components/UserOrderMap";
+import { Phone, ShieldCheck } from "lucide-react";
 
 // Matches IOrder.status exactly
 type OrderStatus =
@@ -131,52 +132,91 @@ export default function OrderStatus() {
   const [loading, setLoading] = useState(true);
   const [riderLocation, setRiderLocation] = useState<[number, number] | null>(null);
 
-  // Fetch order details on mount
-  useEffect(() => {
+  const fetchOrderDetails = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token || !id) return;
 
-    axios
-      .get(`${resturentService}/api/order/single/${id}`, {
+    try {
+      const { data } = await axios.get(`${resturentService}/api/order/single/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
-      })
-      .then(({ data }) => {
+      });
+
+      if (data.order) {
         setOrder(data.order);
         if (data.order?.riderLocation?.latitude != null && data.order?.riderLocation?.longitude != null) {
           setRiderLocation([data.order.riderLocation.latitude, data.order.riderLocation.longitude]);
         }
-      })
-      .catch(() => toast.error("Failed to load order details. Please try again."))
-      .finally(() => setLoading(false));
+      }
+    } catch {
+      // transient network error
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  // Fetch order details on mount
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [fetchOrderDetails]);
+
+  // Polling fallback every 8 seconds while order is active to ensure instant sync even if socket glitches
+  useEffect(() => {
+    if (!order) return;
+    const isActive = !["delivered", "cancelled"].includes(order.status);
+    if (!isActive) return;
+
+    const interval = setInterval(() => {
+      fetchOrderDetails();
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [order?.status, fetchOrderDetails]);
 
   // Realtime status updates via Socket.IO
   useEffect(() => {
     if (!socket || !id) return;
 
-    const handleStatusUpdate = ({ orderId, status }: { orderId: string; status: OrderStatus }) => {
-      if (orderId?.toString() !== id?.toString()) return;
-      setOrder(prev => (prev ? { ...prev, status: status as IOrder["status"] } : prev));
-      toast.success(`Status updated: ${STATUS_META[status]?.label}`, {
-        icon: STATUS_META[status]?.emoji,
-      });
+    const handleStatusUpdate = (payload: any) => {
+      const orderId = payload?.orderId || payload?._id;
+      if (orderId && orderId.toString() !== id.toString()) return;
+
+      const newStatus = payload?.status;
+      if (newStatus) {
+        setOrder(prev => (prev ? { ...prev, status: newStatus as IOrder["status"] } : prev));
+        toast.success(`Status updated: ${STATUS_META[newStatus as OrderStatus]?.label || newStatus}`, {
+          icon: STATUS_META[newStatus as OrderStatus]?.emoji,
+        });
+      }
+
+      // If payload includes rider details or full order, update immediately
+      if (payload?.order) {
+        setOrder(payload.order);
+      }
+      if (payload?.riderLocation?.latitude != null && payload?.riderLocation?.longitude != null) {
+        setRiderLocation([payload.riderLocation.latitude, payload.riderLocation.longitude]);
+      }
+
+      // Always re-fetch complete updated data from backend
+      fetchOrderDetails();
     };
 
     socket.on("order_status_updated", handleStatusUpdate);
     return () => {
       socket.off("order_status_updated", handleStatusUpdate);
     };
-  }, [socket, id]);
+  }, [socket, id, fetchOrderDetails]);
 
-  // Join / leave the order-specific room — name must match backend emit exactly
+  // Join / leave the order-specific room
   useEffect(() => {
     if (!socket || !id) return;
 
     const room = orderRoomName(id);
     socket.emit("join_order_room", room);
+    socket.emit("join_order_room", `order:${id}`);
 
     return () => {
       socket.emit("leave_order_room", room);
+      socket.emit("leave_order_room", `order:${id}`);
     };
   }, [socket, id]);
 
@@ -185,9 +225,9 @@ export default function OrderStatus() {
     if (!socket) return;
 
     const onRiderLocation = ({ latitude, longitude }: { latitude: number; longitude: number }) => {
-          console.log("🔥 Rider Location Received", latitude, longitude);
-
-      setRiderLocation([latitude, longitude]);
+      if (latitude != null && longitude != null) {
+        setRiderLocation([latitude, longitude]);
+      }
     };
 
     socket.on("rider:location-update", onRiderLocation);
@@ -327,16 +367,70 @@ export default function OrderStatus() {
           )}
         </div>
 
-        {/* Live rider map — only rendered once we actually have a rider location */}
+        {/* Rider Assignment Card */}
+        {(order.status === "rider_assigned" || order.status === "picked_up") && (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-200/80 p-5 shadow-sm flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#FF9933] text-white flex items-center justify-center font-black text-xl shadow-md shadow-orange-500/20">
+                  🛵
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 text-sm">
+                      {order.riderName || "Delivery Partner Assigned"}
+                    </h3>
+                    <span className="flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600" /> Assigned
+                    </span>
+                  </div>
+                  <p className="text-xs text-orange-800/80 font-medium mt-0.5">
+                    {order.status === "rider_assigned"
+                      ? "Heading to restaurant to pick up your order"
+                      : "Order picked up! On the way to your address 🚀"}
+                  </p>
+                </div>
+              </div>
+
+              {order.riderPhone && (
+                <a
+                  href={`tel:${order.riderPhone}`}
+                  className="flex items-center gap-1.5 bg-white text-emerald-700 border border-emerald-300 font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm hover:bg-emerald-50 transition shrink-0"
+                >
+                  <Phone className="w-3.5 h-3.5" /> Call Rider
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Live rider map — only rendered once we actually have an assigned rider */}
         {(order.status === "rider_assigned" || order.status === "picked_up") && (
           <div className="bg-white rounded-2xl border border-amber-100 p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Live Delivery Tracking</span>
+              <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" /> Live Map
+              </span>
+            </div>
+
             {showRiderMap ? (
               <UserOrderMap
                 riderLocation={riderLocation as [number, number]}
                 deliveryAddress={[order.deliveryAddress.latitude!, order.deliveryAddress.longitude!]}
               />
             ) : (
-              <p className="text-sm text-gray-400 text-center py-6">Waiting for rider location...</p>
+              <div className="flex flex-col items-center justify-center py-8 text-center bg-amber-50/50 rounded-xl border border-dashed border-amber-200">
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-2xl animate-pulse mb-2">
+                  🛵
+                </div>
+                <p className="text-sm font-bold text-gray-800">Rider On The Move</p>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs">
+                  {order.status === "rider_assigned"
+                    ? "Rider is navigating to the kitchen. Live route will update continuously."
+                    : "Connecting to real-time rider GPS coordinates..."}
+                </p>
+              </div>
             )}
           </div>
         )}
