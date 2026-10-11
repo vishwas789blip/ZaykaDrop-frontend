@@ -487,7 +487,11 @@ const RiderDashboard = () => {
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-black text-emerald-600">
-                    ₹{req.riderAmount ? req.riderAmount : "Payout Available"}
+                    ₹{req.riderAmount && req.riderAmount > 0 
+                        ? req.riderAmount 
+                        : req.distance 
+                          ? Math.max(45, Math.ceil(req.distance) * 18) 
+                          : 54}
                   </span>
                   {req.distance != null && (
                     <p className="text-[11px] text-gray-500 font-semibold">{req.distance} km trip</p>
