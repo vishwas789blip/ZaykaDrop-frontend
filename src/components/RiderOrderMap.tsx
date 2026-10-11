@@ -104,54 +104,86 @@ const Routing = ({
 };
 
 const RiderOrderMap = ({ order }: Props) => {
-    const [riderLocation, setRiderLocation] = useState<[number, number] | null>(null);
+    const [riderLocation, setRiderLocation] = useState<[number, number] | null>(
+        order.riderLocation?.latitude != null && order.riderLocation?.longitude != null
+            ? [order.riderLocation.latitude, order.riderLocation.longitude]
+            : null
+    );
     const { socket } = useSocket();
+
+    const emitLocation = (lat: number, lng: number) => {
+        setRiderLocation([lat, lng]);
+        if (socket) {
+            socket.emit("rider:location-update", {
+                userId: order.userId,
+                orderId: order._id,
+                latitude: lat,
+                longitude: lng,
+            });
+        }
+    };
 
     useEffect(() => {
         if (order.deliveryAddress.latitude == null || order.deliveryAddress.longitude == null) {
             return;
         }
 
-        const fetchRiderLocation = () => {
+        // 1. One immediate fetch
+        navigator.geolocation.getCurrentPosition(
+            (pos) => emitLocation(pos.coords.latitude, pos.coords.longitude),
+            (err) => console.warn('Initial GPS fetch error:', err),
+            { enableHighAccuracy: true, timeout: 5000 }
+        );
+
+        // 2. Hardware-level GPS watch for true moving updates
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                emitLocation(pos.coords.latitude, pos.coords.longitude);
+            },
+            (err) => console.warn('GPS Watch error:', err),
+            {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000,
+            }
+        );
+
+        // 3. Heartbeat emitter every 5 seconds to ensure customer map stays live
+        const interval = setInterval(() => {
             navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
-
-                    setRiderLocation([latitude, longitude]);
-
-                    if (socket) {
-                        socket.emit("rider:location-update", {
-                            userId: order.userId,
-                            orderId: order._id,
-                            latitude,
-                            longitude,
-                        });
-                    }
-                },
-                (err) => {
-                    console.error('Geolocation error:', err);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 5000,
-                }
+                (pos) => emitLocation(pos.coords.latitude, pos.coords.longitude),
+                () => {},
+                { enableHighAccuracy: true, timeout: 5000 }
             );
+        }, 5000);
+
+        return () => {
+            navigator.geolocation.clearWatch(watchId);
+            clearInterval(interval);
         };
+    }, [order.userId, order._id, order.deliveryAddress.latitude, order.deliveryAddress.longitude, socket]);
 
-        fetchRiderLocation();
-        const interval = setInterval(fetchRiderLocation, 10000);
-
-        return () => clearInterval(interval);
-    }, [order.userId, order.riderId, order.deliveryAddress.latitude, order.deliveryAddress.longitude, socket]);
+    // Allows rider / tester on PC to simulate step-by-step movement towards the delivery address
+    const simulateStep = () => {
+        if (!riderLocation || order.deliveryAddress.latitude == null || order.deliveryAddress.longitude == null) return;
+        const targetLat = order.deliveryAddress.latitude;
+        const targetLng = order.deliveryAddress.longitude;
+        const stepFraction = 0.15; // move 15% closer to destination
+        const newLat = riderLocation[0] + (targetLat - riderLocation[0]) * stepFraction;
+        const newLng = riderLocation[1] + (targetLng - riderLocation[1]) * stepFraction;
+        emitLocation(newLat, newLng);
+    };
 
     if (order.deliveryAddress.latitude == null || order.deliveryAddress.longitude == null) {
         return null;
     }
 
     if (!riderLocation) {
-        return null;
+        return (
+            <div className="p-6 text-center text-xs text-gray-500 bg-gray-50 rounded-xl">
+                Connecting to device GPS for live tracking...
+            </div>
+        );
     }
 
     const deliveryLocation: [number, number] = [
@@ -175,6 +207,19 @@ const RiderOrderMap = ({ order }: Props) => {
 
                 <Routing from={riderLocation} to={deliveryLocation} />
             </MapContainer>
+            <div className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-b-xl border-t border-gray-100 text-xs text-gray-500">
+                <span className="flex items-center gap-1.5 font-semibold text-emerald-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    Live GPS Streaming Active
+                </span>
+                <button
+                    type="button"
+                    onClick={simulateStep}
+                    className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold transition cursor-pointer"
+                >
+                    🛵 Move Closer (Test Step)
+                </button>
+            </div>
         </div>
     );
 };

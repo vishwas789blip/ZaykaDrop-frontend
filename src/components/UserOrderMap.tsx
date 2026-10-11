@@ -3,17 +3,22 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L, { getRouting } from '../utils/leafletRouting';
 
 const riderIcon = new L.DivIcon({
-  html: '<div class="bg-blue-500 w-6 h-6 rounded-full border-2 border-white shadow-md"></div>',
+  html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;">
+    <div style="position:absolute;width:32px;height:32px;background-color:#38bdf8;border-radius:9999px;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;opacity:0.75;"></div>
+    <div style="position:relative;width:28px;height:28px;background-color:#2563eb;border-radius:9999px;border:2px solid white;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;font-size:14px;">🛵</div>
+  </div>`,
   className: '',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
 });
 
 const deliveryIcon = new L.DivIcon({
-  html: '<div class="bg-green-500 w-6 h-6 rounded-full border-2 border-white shadow-md"></div>',
+  html: `<div style="display:flex;align-items:center;justify-content:center;">
+    <div style="width:28px;height:28px;background-color:#16a34a;border-radius:9999px;border:2px solid white;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;font-size:14px;">📍</div>
+  </div>`,
   className: '',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
 
 interface RoutingProps {
@@ -24,13 +29,22 @@ interface RoutingProps {
 }
 
 // Draws / updates the OSRM route line between rider and delivery address.
-// Re-creates the control whenever `from` changes so the line tracks rider movement.
 const Routing = ({ from, to, onError, onRouteFound }: RoutingProps) => {
   const map = useMap();
   const controlRef = useRef<any>(null);
 
   useEffect(() => {
     if (!map) return;
+
+    // If control already exists, just update waypoints without destroying and recreating
+    if (controlRef.current && typeof controlRef.current.setWaypoints === 'function') {
+      try {
+        controlRef.current.setWaypoints([L.latLng(from[0], from[1]), L.latLng(to[0], to[1])]);
+        return;
+      } catch (err) {
+        console.warn('Failed to update waypoints on existing control:', err);
+      }
+    }
 
     const routing = getRouting();
     if (!routing || typeof routing.control !== 'function') {

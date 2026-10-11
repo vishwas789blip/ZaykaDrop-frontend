@@ -116,7 +116,13 @@ export default function RestaurantOrder({ restaurantId, token, useMock = false }
     socket.on("order:new", onNewOrder);
     socket.on("order_status_updated", onOrderStatusUpdated);
 
+    // Auto-poll active orders every 6 seconds to catch rider assignment immediately
+    const pollInterval = setInterval(() => {
+      fetchActiveOrders();
+    }, 6000);
+
     return () => {
+      clearInterval(pollInterval);
       socket.off("order:new", onNewOrder);
       socket.off("order_status_updated", onOrderStatusUpdated);
     };

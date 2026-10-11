@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { CheckCircle, Clock, ArrowRight, Phone, Bike } from "lucide-react";
 import type { IOrder } from "../types";
 
 type OrderStatus =
@@ -29,17 +29,25 @@ export const PENDING_STATUSES: OrderStatus[] = [
 
 export const COMPLETED_STATUSES: OrderStatus[] = ["delivered", "cancelled"];
 
-const PIPELINE: OrderStatus[] = ["placed", "accepted", "preparing", "ready_for_rider"];
+const PIPELINE: OrderStatus[] = [
+  "placed",
+  "accepted",
+  "preparing",
+  "ready_for_rider",
+  "rider_assigned",
+  "picked_up",
+  "delivered"
+];
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  placed:          { label: "Placed",          className: "bg-amber-100 text-amber-700" },
-  accepted:        { label: "Accepted",         className: "bg-blue-100 text-blue-700" },
-  preparing:       { label: "Preparing",        className: "bg-purple-100 text-purple-700" },
-  ready_for_rider: { label: "Ready",            className: "bg-teal-100 text-teal-700" },
-  rider_assigned:  { label: "Rider assigned",   className: "bg-teal-100 text-teal-700" },
-  picked_up:       { label: "Picked up",        className: "bg-teal-100 text-teal-700" },
-  delivered:       { label: "Delivered",        className: "bg-emerald-100 text-emerald-700" },
-  cancelled:       { label: "Cancelled",        className: "bg-gray-100 text-gray-500" },
+  placed:          { label: "Placed",              className: "bg-amber-100 text-amber-700" },
+  accepted:        { label: "Accepted",            className: "bg-blue-100 text-blue-700" },
+  preparing:       { label: "Preparing",           className: "bg-purple-100 text-purple-700" },
+  ready_for_rider: { label: "Awaiting Rider",      className: "bg-teal-100 text-teal-700" },
+  rider_assigned:  { label: "🛵 Rider Assigned",   className: "bg-orange-100 text-orange-800 font-bold border border-orange-300" },
+  picked_up:       { label: "🚀 Out for Delivery", className: "bg-blue-100 text-blue-800 font-bold border border-blue-300" },
+  delivered:       { label: "Delivered",           className: "bg-emerald-100 text-emerald-700" },
+  cancelled:       { label: "Cancelled",           className: "bg-gray-100 text-gray-500" },
 };
 
 const CTА_LABEL: Partial<Record<OrderStatus, string>> = {
@@ -114,6 +122,34 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onStatusUpdate, isUpdating
           )).reduce<React.ReactNode[]>((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`} className="text-gray-300 mx-1">·</span>, el], []) || "No items"}
         </p>
       </div>
+
+      {/* Dedicated Rider Details Box */}
+      {(status === "rider_assigned" || status === "picked_up" || order.riderId) && (
+        <div className="mx-4 mb-3 p-2.5 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200/80 rounded-xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold">
+              <Bike className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 leading-tight">
+                {order.riderName || "Delivery Partner"}
+              </p>
+              <p className="text-[11px] text-gray-500">
+                {order.riderPhone ? order.riderPhone : "Assigned & en route"}
+              </p>
+            </div>
+          </div>
+          {order.riderPhone && (
+            <a
+              href={`tel:${order.riderPhone}`}
+              className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-orange-100 text-orange-700 font-medium rounded-lg border border-orange-200 shadow-sm transition-colors text-[11px]"
+            >
+              <Phone className="w-3 h-3" />
+              Call
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Progress track — only for pipeline statuses */}
       {PIPELINE.includes(status) && (
